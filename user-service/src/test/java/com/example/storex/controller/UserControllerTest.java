@@ -268,4 +268,68 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.status").value(500))
                 .andExpect(jsonPath("$.message").value("An internal error occurred. Please contact support."));
     }
+
+    @Test
+    @DisplayName("Malformed JSON payload returns 400 Bad Request")
+    void shouldReturn400WhenPayloadIsMalformed() throws Exception {
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{malformed: json"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Malformed request payload or invalid parameter type"));
+    }
+
+    @Test
+    @DisplayName("Invalid path variable type returns 400 Bad Request")
+    void shouldReturn400WhenPathVariableTypeIsInvalid() throws Exception {
+        mockMvc.perform(get("/api/users/not-a-number"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Malformed request payload or invalid parameter type"));
+    }
+
+    @Test
+    @DisplayName("PUT /api/users/1 returns 400 Bad Request when validation fails")
+    void shouldReturn400WhenUpdatingUserWithInvalidFields() throws Exception {
+        String invalidPayload = """
+                {
+                    "username": "",
+                    "email": "not-an-email",
+                    "fullName": ""
+                }
+                """;
+
+        mockMvc.perform(put("/api/users/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidPayload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"));
+    }
+
+    @Test
+    @DisplayName("Database-level DataIntegrityViolationException with SQL details is sanitized")
+    void shouldSanitizeRawSqlMessageInDataIntegrityViolationException() throws Exception {
+        when(userService.createUser(any(UserRequestDto.class)))
+                .thenThrow(new DataIntegrityViolationException("could not execute statement [ERROR: duplicate key value violates unique constraint \"users_username_key\"] [insert into users ...]"));
+
+        String payload = """
+                {
+                    "username": "john_doe",
+                    "email": "john@example.com",
+                    "fullName": "John Doe"
+                }
+                """;
+
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message").value("Database constraint conflict: A user with this username or email already exists."));
+    }
 }
