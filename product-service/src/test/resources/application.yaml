@@ -1,6 +1,9 @@
+server:
+  port: 8082
+
 spring:
   application:
-    name: storex-test
+    name: product-service-test
   cache:
     type: none
   datasource:
@@ -12,5 +15,3 @@ spring:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
       ddl-auto: create-drop
-server:
-  port: 8080
