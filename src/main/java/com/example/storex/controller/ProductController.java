@@ -3,6 +3,7 @@ package com.example.storex.controller;
 import com.example.storex.model.dto.ProductRequestDto;
 import com.example.storex.model.dto.ProductResponseDto;
 import com.example.storex.service.ProductService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +29,7 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<ProductResponseDto> createProduct(@RequestBody ProductRequestDto requestDto) {
+    public ResponseEntity<ProductResponseDto> createProduct(@Valid @RequestBody ProductRequestDto requestDto) {
         ProductResponseDto created = productService.createProduct(requestDto);
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
@@ -36,7 +37,7 @@ public class ProductController {
     @PutMapping("/{id}")
     public ResponseEntity<ProductResponseDto> updateProduct(
             @PathVariable Long id,
-            @RequestBody ProductRequestDto requestDto) {
+            @Valid @RequestBody ProductRequestDto requestDto) {
         ProductResponseDto updated = productService.updateProduct(id, requestDto);
         return ResponseEntity.ok(updated);
     }

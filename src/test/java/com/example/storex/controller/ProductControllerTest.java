@@ -160,4 +160,35 @@ class ProductControllerTest {
         mockMvc.perform(delete("/api/products/1"))
                 .andExpect(status().isNoContent());
     }
+
+    @Test
+    @DisplayName("POST /api/products returns 400 Bad Request when request body has invalid fields")
+    void shouldReturn400WhenCreatingProductWithInvalidFields() throws Exception {
+        String invalidPayload = """
+                {
+                    "name": "",
+                    "price": -10.00,
+                    "quantity": -5,
+                    "description": "Invalid product"
+                }
+                """;
+
+        mockMvc.perform(post("/api/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidPayload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"));
+    }
+
+    @Test
+    @DisplayName("Unhandled exceptions return 500 with generic error message")
+    void shouldReturnGenericMessageOnInternalServerError() throws Exception {
+        when(productService.getAllProducts()).thenThrow(new RuntimeException("Database secret credentials leaked!"));
+
+        mockMvc.perform(get("/api/products"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.message").value("An internal error occurred. Please contact support."));
+    }
 }
