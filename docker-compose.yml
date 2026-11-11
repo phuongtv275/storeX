@@ -1,9 +1,10 @@
 services:
-  backend:
-    image: storex-backend:latest
+  product-service:
+    image: storex-product:latest
     ports:
-      - "8080:8080"
+      - "${PRODUCT_SERVICE_PORT:-8082}:8082"
     environment:
+      - SERVER_PORT=8082
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
