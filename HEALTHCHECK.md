@@ -8,7 +8,7 @@ Tài liệu này giải thích ngắn gọn về cơ chế **Health Check** (ki�
 
 Theo mặc định, lệnh `depends_on` trong Docker Compose chỉ đợi container phụ thuộc **khởi chạy (started)**, chứ **không đợi** dịch vụ bên trong (PostgreSQL, Redis) sẵn sàng nhận kết nối mạng:
 - Khi PostgreSQL hoặc Redis vừa khởi động, chúng mất vài giây để đọc dữ liệu và mở port socket.
-- Nếu ứng dụng Spring Boot (`product-service`) khởi động cùng lúc, nó sẽ cố gắng kết nối ngay lập tức qua HikariCP (Postgres) và Lettuce (Redis).
+- Nếu ứng dụng Spring Boot (`product-service`, `user-service`) khởi động cùng lúc, nó sẽ cố gắng kết nối ngay lập tức qua HikariCP (Postgres) và Lettuce (Redis).
 - Hậu quả: Gặp lỗi `Connection Refused`, ứng dụng Spring Boot bị crash ngay khi khởi động.
 
 ---
@@ -26,9 +26,17 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  user-service:
+    image: storex-user:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 ```
 
-Product service sẽ **chờ cho đến khi cả hai dịch vụ báo trạng thái `healthy`** thì mới bắt đầu khởi chạy.
+Product service và User service sẽ **chờ cho đến khi cả hai dịch vụ báo trạng thái `healthy`** thì mới bắt đầu khởi chạy.
 
 ---
 
@@ -37,7 +45,7 @@ Product service sẽ **chờ cho đến khi cả hai dịch vụ báo trạng th
 ### A. PostgreSQL Health Check
 ```yaml
 healthcheck:
-  test: ["CMD-SHELL", "pg_isready -U postgres -d storex"]
+  test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
   interval: 3s
   timeout: 5s
   retries: 5
@@ -74,6 +82,7 @@ docker compose ps
 ```
 NAME                       IMAGE                   STATUS                    PORTS
 storex-product-service-1   storex-product:latest   Up 2 minutes              0.0.0.0:8082->8082/tcp
+storex-user-service-1      storex-user:latest      Up 2 minutes              0.0.0.0:8081->8081/tcp
 storex-postgres-1          postgres:13             Up 2 minutes (healthy)    5432/tcp
 storex-redis-1             redis:7-alpine          Up 2 minutes (healthy)    0.0.0.0:6379->6379/tcp
 ```
