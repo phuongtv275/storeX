@@ -81,6 +81,7 @@ docker compose ps
 **Kết quả mẫu:**
 ```
 NAME                       IMAGE                   STATUS                    PORTS
+storex-nginx_proxy-1       nginx:alpine            Up 2 minutes              0.0.0.0:80->80/tcp
 storex-product-service-1   storex-product:latest   Up 2 minutes              0.0.0.0:8082->8082/tcp
 storex-user-service-1      storex-user:latest      Up 2 minutes              0.0.0.0:8081->8081/tcp
 storex-postgres-1          postgres:13             Up 2 minutes (healthy)    5432/tcp
