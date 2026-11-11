@@ -148,4 +148,33 @@ class ProductServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Product not found with id: 99");
     }
+
+    @Test
+    @DisplayName("Service methods must declare appropriate Spring Cache annotations")
+    void shouldDeclareCacheAnnotations() throws NoSuchMethodException {
+        var getAllMethod = ProductServiceImpl.class.getMethod("getAllProducts");
+        org.springframework.cache.annotation.Cacheable getAllCacheable = getAllMethod.getAnnotation(org.springframework.cache.annotation.Cacheable.class);
+        assertThat(getAllCacheable).isNotNull();
+        assertThat(getAllCacheable.value()).contains("products");
+        assertThat(getAllCacheable.key()).isEqualTo("'all'");
+
+        var getByIdMethod = ProductServiceImpl.class.getMethod("getProductById", Long.class);
+        org.springframework.cache.annotation.Cacheable getByIdCacheable = getByIdMethod.getAnnotation(org.springframework.cache.annotation.Cacheable.class);
+        assertThat(getByIdCacheable).isNotNull();
+        assertThat(getByIdCacheable.value()).contains("product");
+        assertThat(getByIdCacheable.key()).isEqualTo("#id");
+
+        var createMethod = ProductServiceImpl.class.getMethod("createProduct", ProductRequestDto.class);
+        org.springframework.cache.annotation.CacheEvict createEvict = createMethod.getAnnotation(org.springframework.cache.annotation.CacheEvict.class);
+        assertThat(createEvict).isNotNull();
+        assertThat(createEvict.value()).contains("products");
+
+        var updateMethod = ProductServiceImpl.class.getMethod("updateProduct", Long.class, ProductRequestDto.class);
+        org.springframework.cache.annotation.Caching updateCaching = updateMethod.getAnnotation(org.springframework.cache.annotation.Caching.class);
+        assertThat(updateCaching).isNotNull();
+
+        var deleteMethod = ProductServiceImpl.class.getMethod("deleteProduct", Long.class);
+        org.springframework.cache.annotation.Caching deleteCaching = deleteMethod.getAnnotation(org.springframework.cache.annotation.Caching.class);
+        assertThat(deleteCaching).isNotNull();
+    }
 }
