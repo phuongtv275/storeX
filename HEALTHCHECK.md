@@ -8,7 +8,7 @@ Tài liệu này giải thích ngắn gọn về cơ chế **Health Check** (ki�
 
 Theo mặc định, lệnh `depends_on` trong Docker Compose chỉ đợi container phụ thuộc **khởi chạy (started)**, chứ **không đợi** dịch vụ bên trong (PostgreSQL, Redis) sẵn sàng nhận kết nối mạng:
 - Khi PostgreSQL hoặc Redis vừa khởi động, chúng mất vài giây để đọc dữ liệu và mở port socket.
-- Nếu ứng dụng Spring Boot (`backend`) khởi động cùng lúc, nó sẽ cố gắng kết nối ngay lập tức qua HikariCP (Postgres) và Lettuce (Redis).
+- Nếu ứng dụng Spring Boot (`product-service`) khởi động cùng lúc, nó sẽ cố gắng kết nối ngay lập tức qua HikariCP (Postgres) và Lettuce (Redis).
 - Hậu quả: Gặp lỗi `Connection Refused`, ứng dụng Spring Boot bị crash ngay khi khởi động.
 
 ---
@@ -19,8 +19,8 @@ Dự án áp dụng cơ chế **Health Check** kết hợp `condition: service_h
 
 ```yaml
 services:
-  backend:
-    image: storex-backend:latest
+  product-service:
+    image: storex-product:latest
     depends_on:
       postgres:
         condition: service_healthy
@@ -28,7 +28,7 @@ services:
         condition: service_healthy
 ```
 
-Backend sẽ **chờ cho đến khi cả hai dịch vụ báo trạng thái `healthy`** thì mới bắt đầu khởi chạy.
+Product service sẽ **chờ cho đến khi cả hai dịch vụ báo trạng thái `healthy`** thì mới bắt đầu khởi chạy.
 
 ---
 
@@ -72,9 +72,9 @@ docker compose ps
 
 **Kết quả mẫu:**
 ```
-NAME                IMAGE                   STATUS                    PORTS
-storex-backend-1    storex-backend:latest   Up 2 minutes              0.0.0.0:8080->8080/tcp
-storex-postgres-1   postgres:13             Up 2 minutes (healthy)    0.0.0.0:5432->5432/tcp
-storex-redis-1      redis:7-alpine          Up 2 minutes (healthy)    0.0.0.0:6379->6379/tcp
+NAME                       IMAGE                   STATUS                    PORTS
+storex-product-service-1   storex-product:latest   Up 2 minutes              0.0.0.0:8082->8082/tcp
+storex-postgres-1          postgres:13             Up 2 minutes (healthy)    5432/tcp
+storex-redis-1             redis:7-alpine          Up 2 minutes (healthy)    0.0.0.0:6379->6379/tcp
 ```
 > Trạng thái `(healthy)` xác nhận dịch vụ đã hoàn toàn sẵn sàng và ổn định.
