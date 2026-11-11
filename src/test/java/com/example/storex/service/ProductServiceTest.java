@@ -168,13 +168,22 @@ class ProductServiceTest {
         org.springframework.cache.annotation.CacheEvict createEvict = createMethod.getAnnotation(org.springframework.cache.annotation.CacheEvict.class);
         assertThat(createEvict).isNotNull();
         assertThat(createEvict.value()).contains("products");
+        assertThat(createEvict.key()).isEqualTo("'all'");
 
         var updateMethod = ProductServiceImpl.class.getMethod("updateProduct", Long.class, ProductRequestDto.class);
         org.springframework.cache.annotation.Caching updateCaching = updateMethod.getAnnotation(org.springframework.cache.annotation.Caching.class);
         assertThat(updateCaching).isNotNull();
+        assertThat(updateCaching.evict()).hasSize(2);
+        assertThat(updateCaching.evict())
+                .anyMatch(e -> java.util.Arrays.asList(e.value()).contains("products") && "'all'".equals(e.key()))
+                .anyMatch(e -> java.util.Arrays.asList(e.value()).contains("product") && "#id".equals(e.key()));
 
         var deleteMethod = ProductServiceImpl.class.getMethod("deleteProduct", Long.class);
         org.springframework.cache.annotation.Caching deleteCaching = deleteMethod.getAnnotation(org.springframework.cache.annotation.Caching.class);
         assertThat(deleteCaching).isNotNull();
+        assertThat(deleteCaching.evict()).hasSize(2);
+        assertThat(deleteCaching.evict())
+                .anyMatch(e -> java.util.Arrays.asList(e.value()).contains("products") && "'all'".equals(e.key()))
+                .anyMatch(e -> java.util.Arrays.asList(e.value()).contains("product") && "#id".equals(e.key()));
     }
 }

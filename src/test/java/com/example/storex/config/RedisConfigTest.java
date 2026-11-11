@@ -29,8 +29,9 @@ class RedisConfigTest {
     }
 
     @Test
-    @DisplayName("RedisCacheManager bean should be configured and present")
-    void shouldContainCacheManagerBean() {
-        assertThat(applicationContext.containsBean("cacheManager")).isTrue();
+    @DisplayName("When spring.cache.type is none, CacheManager should be NoOpCacheManager")
+    void shouldRespectCacheTypeNone() {
+        org.springframework.cache.CacheManager cacheManager = applicationContext.getBean(org.springframework.cache.CacheManager.class);
+        assertThat(cacheManager).isInstanceOf(org.springframework.cache.support.NoOpCacheManager.class);
     }
 }
