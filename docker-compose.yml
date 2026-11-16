@@ -3,12 +3,12 @@ services:
     image: quickbite-user-service:latest
     container_name: quickbite-user
     ports:
-      - "${USER_SERVICE_PORT}:${USER_SERVICE_PORT}"
+      - "${USER_SERVER_PORT}:${USER_SERVER_PORT}"
     environment:
-      - SERVER_PORT=${USER_SERVICE_PORT}
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB_USER}
-      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SERVER_PORT=${USER_SERVER_PORT}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${USER_DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${USER_DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${USER_DB_PASSWORD}
     networks:
       - quickbite-net
 
@@ -16,12 +16,12 @@ services:
     image: quickbite-restaurant-service:latest
     container_name: quickbite-restaurant
     ports:
-      - "${RESTAURANT_SERVICE_PORT}:${RESTAURANT_SERVICE_PORT}"
+      - "${RESTAURANT_SERVER_PORT}:${RESTAURANT_SERVER_PORT}"
     environment:
-      - SERVER_PORT=${RESTAURANT_SERVICE_PORT}
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB_RESTAURANT}
-      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SERVER_PORT=${RESTAURANT_SERVER_PORT}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${RESTAURANT_DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${RESTAURANT_DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${RESTAURANT_DB_PASSWORD}
     networks:
       - quickbite-net
 
@@ -29,12 +29,12 @@ services:
     image: quickbite-order-service:latest
     container_name: quickbite-order
     ports:
-      - "${ORDER_SERVICE_PORT}:${ORDER_SERVICE_PORT}"
+      - "${ORDER_SERVER_PORT}:${ORDER_SERVER_PORT}"
     environment:
-      - SERVER_PORT=${ORDER_SERVICE_PORT}
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB_ORDER}
-      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SERVER_PORT=${ORDER_SERVER_PORT}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${ORDER_DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${ORDER_DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${ORDER_DB_PASSWORD}
     networks:
       - quickbite-net
 
@@ -42,12 +42,12 @@ services:
     image: quickbite-notification-service:latest
     container_name: quickbite-notification
     ports:
-      - "${NOTIFICATION_SERVICE_PORT}:${NOTIFICATION_SERVICE_PORT}"
+      - "${NOTIFICATION_SERVER_PORT}:${NOTIFICATION_SERVER_PORT}"
     environment:
-      - SERVER_PORT=${NOTIFICATION_SERVICE_PORT}
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB_NOTIFICATION}
-      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SERVER_PORT=${NOTIFICATION_SERVER_PORT}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${NOTIFICATION_DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${NOTIFICATION_DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${NOTIFICATION_DB_PASSWORD}
     networks:
       - quickbite-net
 
