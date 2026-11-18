@@ -8,6 +8,7 @@ services:
     depends_on:
       - product-service
       - user-service
+      - payment-service
     networks:
       - storex-net
 
@@ -52,6 +53,27 @@ services:
       storex-net:
         aliases:
           - user_service
+
+  payment-service:
+    image: storex-payment:latest
+    ports:
+      - "${PAYMENT_SERVICE_PORT:-8086}:8086"
+    environment:
+      - SERVER_PORT=8086
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB_PAYMENT:-storex_payment}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=${SPRING_DATA_REDIS_HOST:-redis}
+      - SPRING_DATA_REDIS_PORT=${SPRING_DATA_REDIS_PORT:-6379}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      storex-net:
+        aliases:
+          - payment_service
 
   postgres:
     image: postgres:13

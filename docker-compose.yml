@@ -11,8 +11,10 @@ services:
       - quickbite-notification
       - quickbite-restaurant
       - quickbite-order
+      - quickbite-payment
     networks:
       - quickbite-net
+
   quickbite-user:
     image: quickbite-user-service:latest
     container_name: quickbite-user
@@ -89,6 +91,28 @@ services:
         aliases:
           - product_service
 
+  quickbite-payment:
+    image: quickbite-payment-service:latest
+    container_name: quickbite-payment
+    ports:
+      - "${PAYMENT_SERVER_PORT}:${PAYMENT_SERVER_PORT}"
+    environment:
+      - SERVER_PORT=${PAYMENT_SERVER_PORT}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${PAYMENT_DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${PAYMENT_DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${PAYMENT_DB_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=${SPRING_DATA_REDIS_HOST}
+      - SPRING_DATA_REDIS_PORT=${SPRING_DATA_REDIS_PORT}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      quickbite-net:
+        aliases:
+          - payment_service
+
   postgres:
     image: postgres:13
     environment:
@@ -104,7 +128,9 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - quickbite-net
+      quickbite-net:
+        aliases:
+          - quickbite-db
 
   redis:
     image: redis:7-alpine
