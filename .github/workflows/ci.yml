@@ -8,7 +8,12 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          java-version: 17
+          java-version: 21
           distribution: temurin
       - name: Build with Gradle
-        run: ./gradlew bootJar
+        run: |
+          ./notification-service/gradlew bootJar
+          ./order-service/gradlew bootJar
+          ./product-service/gradlew bootJar
+          ./restaurant-service/gradlew bootJar
+          ./user-service/gradlew bootJar
