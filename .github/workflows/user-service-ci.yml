@@ -27,5 +27,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: user-service-artifact
-          path: build/libs/user-service-0.0.1-SNAPSHOT.jar
+          path: user-service/build/libs/user-service-0.0.1-SNAPSHOT.jar
           retention-days: 3
