@@ -6,52 +6,88 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - product-service
-      - user-service
+      - quickbite-product
+      - quickbite-user
+      - quickbite-notification
+      - quickbite-restaurant
+      - quickbite-order
     networks:
-      - storex-net
-
-  product-service:
-    image: storex-product:latest
+      - quickbite-net
+  quickbite-user:
+    image: quickbite-user-service:latest
+    container_name: quickbite-user
     ports:
-      - "${PRODUCT_SERVICE_PORT:-8082}:8082"
+      - "${USER_SERVER_PORT}:${USER_SERVER_PORT}"
     environment:
-      - SERVER_PORT=8082
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
-      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
-      - SPRING_DATA_REDIS_HOST=${SPRING_DATA_REDIS_HOST:-redis}
-      - SPRING_DATA_REDIS_PORT=${SPRING_DATA_REDIS_PORT:-6379}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - SERVER_PORT=${USER_SERVER_PORT}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${USER_DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${USER_DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${USER_DB_PASSWORD}
     networks:
-      storex-net:
-        aliases:
-          - product_service
-
-  user-service:
-    image: storex-user:latest
-    ports:
-      - "${USER_SERVICE_PORT:-8081}:8081"
-    environment:
-      - SERVER_PORT=8081
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB_USER:-storex_user}
-      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
-      - SPRING_DATA_REDIS_HOST=${SPRING_DATA_REDIS_HOST:-redis}
-      - SPRING_DATA_REDIS_PORT=${SPRING_DATA_REDIS_PORT:-6379}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      storex-net:
+      quickbite-net:
         aliases:
           - user_service
+
+  quickbite-restaurant:
+    image: quickbite-restaurant-service:latest
+    container_name: quickbite-restaurant
+    ports:
+      - "${RESTAURANT_SERVER_PORT}:${RESTAURANT_SERVER_PORT}"
+    environment:
+      - SERVER_PORT=${RESTAURANT_SERVER_PORT}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${RESTAURANT_DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${RESTAURANT_DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${RESTAURANT_DB_PASSWORD}
+    networks:
+      - quickbite-net
+
+  quickbite-order:
+    image: quickbite-order-service:latest
+    container_name: quickbite-order
+    ports:
+      - "${ORDER_SERVER_PORT}:${ORDER_SERVER_PORT}"
+    environment:
+      - SERVER_PORT=${ORDER_SERVER_PORT}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${ORDER_DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${ORDER_DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${ORDER_DB_PASSWORD}
+    networks:
+      - quickbite-net
+
+  quickbite-notification:
+    image: quickbite-notification-service:latest
+    container_name: quickbite-notification
+    ports:
+      - "${NOTIFICATION_SERVER_PORT}:${NOTIFICATION_SERVER_PORT}"
+    environment:
+      - SERVER_PORT=${NOTIFICATION_SERVER_PORT}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${NOTIFICATION_DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${NOTIFICATION_DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${NOTIFICATION_DB_PASSWORD}
+    networks:
+      - quickbite-net
+
+  quickbite-product:
+    image: quickbite-product-service:latest
+    container_name: quickbite-product
+    ports:
+      - "${PRODUCT_SERVER_PORT}:${PRODUCT_SERVER_PORT}"
+    environment:
+      - SERVER_PORT=${PRODUCT_SERVER_PORT}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${PRODUCT_DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${PRODUCT_DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${PRODUCT_DB_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=${SPRING_DATA_REDIS_HOST}
+      - SPRING_DATA_REDIS_PORT=${SPRING_DATA_REDIS_PORT}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      quickbite-net:
+        aliases:
+          - product_service
 
   postgres:
     image: postgres:13
@@ -63,12 +99,12 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 3s
       timeout: 5s
       retries: 5
     networks:
-      - storex-net
+      - quickbite-net
 
   redis:
     image: redis:7-alpine
@@ -77,16 +113,16 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 3s
       timeout: 5s
       retries: 5
     networks:
-      - storex-net
+      - quickbite-net
 
 networks:
-  storex-net:
-    driver: bridge
+  quickbite-net:
+    external: true
 
 volumes:
   postgres_data:
