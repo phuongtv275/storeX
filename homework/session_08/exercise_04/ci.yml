@@ -1,0 +1,155 @@
+name: Payment Service CI
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # =========================================================================
+  # JOB 1 (Chạy song song): Kiểm tra chất lượng code cơ bản
+  # Sử dụng Gradle task 'check -x test' để compile, validate mã nguồn
+  # =========================================================================
+  code-quality:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Eclipse Temurin)
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+        working-directory: ./payment-service
+
+      - name: Run Code Quality Checks
+        run: ./gradlew check -x test
+        working-directory: ./payment-service
+
+  # =========================================================================
+  # JOB 2 (Chạy song song): Chạy Unit Test có truy xuất Database
+  # Khởi tạo container PostgreSQL (payment_db) và Redis
+  # =========================================================================
+  unit-test:
+    name: Unit Tests with Database
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: payment_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Eclipse Temurin)
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+        working-directory: ./payment-service
+
+      - name: Run Unit Tests with Database
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/payment_db
+          SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+          SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
+          SPRING_DATASOURCE_USERNAME: postgres
+          SPRING_DATASOURCE_PASSWORD: postgrespassword
+          SPRING_DATA_REDIS_HOST: localhost
+          SPRING_DATA_REDIS_PORT: 6379
+        run: ./gradlew test
+        working-directory: ./payment-service
+
+  # =========================================================================
+  # JOB 3 (Chạy tuần tự sau khi Job 1 & 2 pass): Build & Push Docker Image lên GHCR
+  # =========================================================================
+  build-and-push:
+    name: Build & Push GHCR
+    needs: [code-quality, unit-test]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Eclipse Temurin)
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+        working-directory: ./payment-service
+
+      - name: Build Spring Boot JAR Package
+        run: ./gradlew bootJar -x test
+        working-directory: ./payment-service
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry (GHCR)
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Chuẩn hóa tên owner về dạng chữ thường theo yêu cầu của GHCR
+      - name: Extract repository owner lowercase
+        id: repo-owner
+        run: echo "OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./payment-service
+          file: ./payment-service/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ghcr.io/${{ steps.repo-owner.outputs.OWNER }}/payment-service:latest
+            ghcr.io/${{ steps.repo-owner.outputs.OWNER }}/payment-service:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
