@@ -1,0 +1,126 @@
+name: Order Service CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  # =========================================================================
+  # JOB 1 (Chạy song song): Kiểm tra chất lượng code cơ bản
+  # Sử dụng task Gradle check (loại trừ test) để thẩm định mã nguồn
+  # =========================================================================
+  code-quality:
+    name: Code Quality Check
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+#          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+        working-directory: ./order-service
+
+      - name: Run Code Quality Checks
+        run: ./gradlew check -x test
+        working-directory: ./order-service
+
+  # =========================================================================
+  # JOB 2 (Chạy song song): Chạy Unit Test có truy xuất PostgreSQL
+  # Sử dụng GitHub Actions Services để khởi tạo PostgreSQL database tạm thời
+  # =========================================================================
+  test:
+    name: Unit Tests with PostgreSQL
+    runs-on: self-hosted
+
+    # Khởi tạo service container PostgreSQL chạy song song với job runner
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: order_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+        ports:
+          - 5432:5432
+        # Health check đảm bảo PostgreSQL đã sẵn sàng nhận kết nối trước khi chạy test
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # Cấu hình biến môi trường DataSource cho Spring Boot
+    # Do job chạy trực tiếp trên host runner (ubuntu-latest), kết nối tới DB qua localhost:5432
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/order_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgrespassword
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+        working-directory: ./order-service
+
+      - name: Run Unit Tests
+        run: ./gradlew test
+        working-directory: ./order-service
+
+  # =========================================================================
+  # JOB 3 (Chạy tuần tự): Build và đóng gói ứng dụng thành file JAR
+  # Chỉ thực thi khi cả 2 job 'code-quality' và 'test' đều thành công
+  # =========================================================================
+  build:
+    name: Build & Package JAR
+    needs: [code-quality, test]
+    runs-on: ubuntu-latest
+
+    steps:
+      # Áp dụng Job Isolation: Runner mới độc lập hoàn toàn, cần checkout và setup JDK lại
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+#          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+        working-directory: ./order-service
+
+      # Đóng gói JAR, bỏ qua test vì Unit Test đã được kiểm chứng ở job test
+      - name: Build JAR
+        run: ./gradlew bootJar -x test
+        working-directory: ./order-service
+
+      # Lưu trữ kết quả đóng gói dưới dạng artifact với thời hạn lưu trữ 7 ngày
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: order-service-artifact
+          path: order-service/build/libs/*.jar
+          retention-days: 7
