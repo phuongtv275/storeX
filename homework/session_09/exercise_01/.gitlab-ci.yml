@@ -1,0 +1,38 @@
+# ========================================================
+# GitLab CI/CD Pipeline - User Service
+# Build Spring Boot Application with Gradle & JDK 17
+# ========================================================
+
+# 1. Định nghĩa Docker image chứa sẵn môi trường Java (JDK 17) và Gradle
+image: gradle:8.5-jdk17
+
+# 2. Khai báo danh sách các stages (sửa đúng cú pháp mảng YAML có dấu '-')
+stages:
+  - build_app
+
+# 3. Thiết lập biến môi trường để cache Gradle vào thư mục dự án của GitLab Runner
+variables:
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+
+# 4. Cấu hình Cache để tái sử dụng thư viện giữa các lần chạy, tăng tốc độ build
+cache:
+  key: "$CI_COMMIT_REF_SLUG"
+  paths:
+    - .gradle/wrapper/
+    - .gradle/caches/
+
+# 5. Định nghĩa job build_job thuộc stage build_app
+build_job:
+  stage: build_app
+  before_script:
+    # Cấp quyền thực thi cho Gradle Wrapper script đề phòng mất quyền file trên Git
+    - chmod +x ./gradlew
+  script:
+    # Thực hiện clean và build ứng dụng, bỏ qua unit test để build nhanh demo
+    - ./gradlew clean build -x test
+  artifacts:
+    # Lưu lại file artifact (.jar) sau khi build để demo hoặc deploy
+    name: "user-service-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - build/libs/*.jar
+    expire_in: 1 week
