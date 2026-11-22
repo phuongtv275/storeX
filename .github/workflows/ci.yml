@@ -1,19 +1,208 @@
-name: Cart Service CI
-on: [push]
+name: CI - Continuous Integration for All Services
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
 jobs:
-  build:
+  # =========================================================================
+  # JOB 1 (Chạy song song): Kiểm tra chất lượng code cơ bản
+  # Sử dụng Gradle task 'check -x test' để compile, validate cấu trúc mã nguồn
+  # =========================================================================
+  code-quality:
+    name: Code Quality Check (${{ matrix.service.name }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: notification-service
+            path: notification-service
+          - name: order-service
+            path: order-service
+          - name: payment-service
+            path: payment-service
+          - name: product-service
+            path: product-service
+          - name: restaurant-service
+            path: restaurant-service
+          - name: user-service
+            path: user-service
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Eclipse Temurin)
+        uses: actions/setup-java@v5
         with:
-          java-version: 21
-          distribution: temurin
-      - name: Build with Gradle
-        run: |
-          cd ./notification-service && ./gradlew bootJar && cd ..
-          cd ./order-service && ./gradlew bootJar && cd ..
-          cd ./product-service && ./gradlew bootJar && cd ..
-          cd ./restaurant-service && ./gradlew bootJar && cd ..
-          cd ./user-service && ./gradlew bootJar && cd ..
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+        working-directory: ${{ matrix.service.path }}
+
+      - name: Run Code Quality Checks
+        run: ./gradlew check -x test
+        working-directory: ${{ matrix.service.path }}
+
+  # =========================================================================
+  # JOB 2 (Chạy song song): Chạy Unit Test có truy xuất Database
+  # Khởi tạo service container PostgreSQL (và Redis) độc lập cho từng service
+  # =========================================================================
+  unit-test:
+    name: Unit Tests with Database (${{ matrix.service.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: notification-service
+            path: notification-service
+            db: notification_db
+          - name: order-service
+            path: order-service
+            db: order_db
+          - name: payment-service
+            path: payment-service
+            db: payment_db
+          - name: product-service
+            path: product-service
+            db: product_db
+          - name: restaurant-service
+            path: restaurant-service
+            db: restaurant_db
+          - name: user-service
+            path: user-service
+            db: user_db
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ${{ matrix.service.db }}
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Eclipse Temurin)
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+        working-directory: ${{ matrix.service.path }}
+
+      - name: Run Unit Tests with Database
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/${{ matrix.service.db }}
+          SPRING_DATASOURCE_USERNAME: postgres
+          SPRING_DATASOURCE_PASSWORD: postgrespassword
+          SPRING_DATA_REDIS_HOST: localhost
+          SPRING_DATA_REDIS_PORT: 6379
+        run: ./gradlew test
+        working-directory: ${{ matrix.service.path }}
+
+  # =========================================================================
+  # JOB 3 (Chạy tuần tự sau khi Job 1 & 2 pass): Build & Push Docker Image lên GHCR
+  # =========================================================================
+  build-and-push:
+    name: Build & Push GHCR (${{ matrix.service.name }})
+    needs: [code-quality, unit-test]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: notification-service
+            path: notification-service
+          - name: order-service
+            path: order-service
+          - name: payment-service
+            path: payment-service
+          - name: product-service
+            path: product-service
+          - name: restaurant-service
+            path: restaurant-service
+          - name: user-service
+            path: user-service
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Eclipse Temurin)
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+        working-directory: ${{ matrix.service.path }}
+
+      # Build file JAR thành phẩm trước để hỗ trợ cả single-stage và multi-stage Dockerfile
+      - name: Build Spring Boot JAR Package
+        run: ./gradlew bootJar -x test
+        working-directory: ${{ matrix.service.path }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry (GHCR)
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Chuẩn hóa tên owner về dạng chữ thường theo yêu cầu của GHCR
+      - name: Extract repository owner lowercase
+        id: repo-owner
+        run: echo "OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service.path }}
+          file: ${{ matrix.service.path }}/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ghcr.io/${{ steps.repo-owner.outputs.OWNER }}/${{ matrix.service.name }}:latest
+            ghcr.io/${{ steps.repo-owner.outputs.OWNER }}/${{ matrix.service.name }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
