@@ -16,7 +16,7 @@ jobs:
   # =========================================================================
   code-quality:
     name: Code Quality Check
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,7 +42,7 @@ jobs:
   # =========================================================================
   test:
     name: Unit Tests with PostgreSQL
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     # Khởi tạo service container PostgreSQL chạy song song với job runner
     services:
